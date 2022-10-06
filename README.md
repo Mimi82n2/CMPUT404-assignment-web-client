@@ -1,3 +1,9 @@
+Resources used
+ - [urllib.parse — Parse URLs into components](https://docs.python.org/3/library/urllib.parse.html)
+ - [How to urlencode a querystring in Python?](https://stackoverflow.com/questions/5607551/how-to-urlencode-a-querystring-in-python)
+ - [application/x-www-form-urlencoded or multipart/form-data](https://stackoverflow.com/questions/4007969/application-x-www-form-urlencoded-or-multipart-form-data)
+
+
 CMPUT404-assignment-web-client
 ==============================
 

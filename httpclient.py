@@ -41,13 +41,26 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        # Return the response code
+        # (second item in the first line)
+        return int(data.split('\n')[0].split(' ')[1])
 
     def get_headers(self,data):
-        return None
+        # Ignore the content
+        headers = data.split('\r\n\r\n')[0]
+        headers = headers.split('\r\n')
+        #Remove first status code line
+        del headers[0]
+        head_dic = {}
+        for header in headers:
+            key,val = header.split(":",1)
+            head_dic[key] = val
+        return head_dic
 
     def get_body(self, data):
-        return None
+        # Return the body
+        # Body is separated by two \r\n
+        return data.split('\r\n\r\n')[1]
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -68,13 +81,78 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        # Retrieve info from the url and connect
+        port = 80
+        path = '/'
+        urlparts = urllib.parse.urlparse(url)
+        host = urlparts.hostname
+        if urlparts.port:
+            port = urlparts.port
+        if urlparts.path:
+            path = urlparts.path
+        if path[-1] != '/':
+            path+='/'
+        if not host:
+            host,path = path.split('/',1)
+        self.connect(host,port)
+
+        # Create a request to be sent to the server
+        request = (
+            "GET {} HTTP/1.1\r\n"
+            "Host: {}:{}\r\n"
+            "Connection: close\r\n"
+            "Accept: */*\r\n\r\n"
+        ).format(path, host, port)
+        self.sendall(request)
+
+        # Get response from server and return it
+        recv = self.recvall(self.socket)
+        code = self.get_code(recv)
+        body = self.get_body(recv)
+        self.close()
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        # Retrieve info from the url and connect
+        port = 80
+        path = '/'
+        urlparts = urllib.parse.urlparse(url)
+        host = urlparts.hostname
+        if urlparts.port:
+            port = urlparts.port
+        if urlparts.path:
+            path = urlparts.path
+        if path[-1] != '/':
+            path+='/'
+        if not host:
+            host,path = path.split('/',1)
+        self.connect(host,port)
+
+        # Prepare and send the request
+        content = ""
+        contentType = ""
+        contentLength = 0
+        if args:
+            content = urllib.parse.urlencode(args)
+            contentType = "Content-Type: application/x-www-form-urlencoded\r\n"
+            contentLength = len(content)
+        request = (
+            "POST {} HTTP/1.1\r\n"
+            "Host: {}:{}\r\n"
+            "Connection: close\r\n"
+            "Accept: */*\r\n"
+            "{}"
+            "Content-Length: {}\r\n"
+            "\r\n"
+            "{}"
+        ).format(path, host, port, contentType, contentLength, content)
+        self.sendall(request)
+
+        # Retrieve the response and return its code and body
+        recv = self.recvall(self.socket)
+        code = self.get_code(recv)
+        body = self.get_body(recv)
+        self.close()
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
@@ -82,13 +160,14 @@ class HTTPClient(object):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
-    
+
 if __name__ == "__main__":
     client = HTTPClient()
     command = "GET"
     if (len(sys.argv) <= 1):
         help()
         sys.exit(1)
+
     elif (len(sys.argv) == 3):
         print(client.command( sys.argv[2], sys.argv[1] ))
     else:
